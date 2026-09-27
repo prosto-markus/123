@@ -46,7 +46,7 @@ async def handle_notebook(message: types.Message):
     if len(args) == 1:
         pencil_str = ", ".join(data["pencil"]) if data["pencil"] else "Пусто"
         forever_str = ", ".join(data["forever"]) if data["forever"] else "Пусто"
-        text = f"**Список пидерасов, которых я ненавижу:**\n\n✏️ **Карандашиком:**\n{pencil_str}\n\n🔒 **Навсегда:**\n{forever_str}"
+        text = f"**Список пидорасов, которых я ненавижу:**\n\n✏️ **Карандашиком:**\n{pencil_str}\n\n🔒 **Навсегда:**\n{forever_str}"
         await message.reply(text, parse_mode="Markdown")
         return
         
