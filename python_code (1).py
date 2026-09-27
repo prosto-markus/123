@@ -1,7 +1,6 @@
 import asyncio
 import json
 import os
-import re
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiohttp import web
@@ -13,7 +12,7 @@ bot = Bot(token=TOKEN)
 dp = Dispatcher()
 DATA_FILE = "pidor_list.json"
 
-# Загрузка и сохранение базы данных
+# Завантаження та збереження бази даних
 def load_data():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r", encoding="utf-8") as f:
@@ -31,7 +30,7 @@ def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-# Проверка прав администратора
+# Перевірка прав адміністратора
 def is_admin(message: types.Message):
     if message.from_user.id == ADMIN_ID:
         return True
@@ -39,7 +38,7 @@ def is_admin(message: types.Message):
         return True
     return False
 
-# Настоящее имя автора из комментариев
+# Насправді ім'я автора з коментарів
 def get_comment_author_name(reply_message: types.Message) -> str:
     if reply_message.author_signature:
         return str(reply_message.author_signature)
@@ -52,36 +51,40 @@ def get_comment_author_name(reply_message: types.Message) -> str:
         return str(user.full_name)
     return "Неизвестный нарушитель"
 
-# 1. ДОБАВЛЕНИЕ В ТЕТРАДКУ (По словам !тетрадка или !пидор через реплай)
-@dp.message(F.reply_to_message & (F.text.lower().contains("!тетрадка") | F.text.lower().contains("!пидор")))
-async def add_to_list(message: types.Message):
-    if not is_admin(message):
+
+# ==================== КОМАНДИ ВИВЕДЕННЯ СПИСКІВ (ПРОСТО ТЕКСТОМ) ====================
+
+# 1. ВИВЕДЕННЯ СПИСКА ТЕТРАДКИ (По команді !список)
+@dp.message(F.text.strip().lower().startswith("!список"))
+async def show_list(message: types.Message):
+    # Якщо це команда еліти, пропускаємо її, щоб спрацював сусідній обробник
+    if message.text.strip().lower().startswith("!список_элиты"):
         return
         
-    username = get_comment_author_name(message.reply_to_message)
-    if username in ["Telegram", "Неизвестный нарушитель"] and message.reply_to_message.from_user:
-        username = str(message.reply_to_message.from_user.full_name)
-
     data = load_data()
-    if username in data["elite"]:
-        await message.reply(f"Этого пользователя нельзя добавить in тетрадку, он в списке элиты! 👑")
-        return
-    if username in data["forever"]:
-        await message.reply(f"{username} уже в тетрадке пидерасов навсегда. Тут без шансов.")
-        return
-        
-    if username in data["pencil"]:
-        data["pencil"].remove(username)
-        data["forever"].append(username)
-        save_data(data)
-        await message.reply(f"{username} в тетрадке пидорасов навсегда. ⛔")
-    else:
-        data["pencil"].append(username)
-        save_data(data)
-        await message.reply(f"{username} в тетрадке пидорасов, но пока карандашиком. ✏️")
+    pencil_str = ", ".join(data["pencil"]) if data["pencil"] else "Пусто"
+    forever_str = ", ".join(data["forever"]) if data["forever"] else "Пусто"
+    
+    text = (
+        "**Список py_known_me_for_long_time, которых я ненавижу:**\n\n"
+        f"✏️ **Карандашиком:**\n{pencil_str}\n\n"
+        f"🔒 **Навсегда:**\n{forever_str}"
+    )
+    await message.reply(text, parse_mode="Markdown")
 
-# 2. ДОБАВЛЕНИЕ В ЭЛИТУ (Через реплай словом !элита)
-@dp.message(F.reply_to_message & F.text.lower().contains("!элита"))
+# 2. ВИВЕДЕННЯ СПИСКА ЕЛІТИ (Тепер один в один як верхній список!)
+@dp.message(F.text.strip().lower().startswith("!список_элиты"))
+async def show_elite_list(message: types.Message):
+    data = load_data()
+    elite_str = ", ".join(data["elite"]) if data["elite"] else "Пусто"
+    text = f"👑 **Список неприкасаемой элиты чата:**\n\n{elite_str}"
+    await message.reply(text, parse_mode="Markdown")
+
+
+# ==================== КОМАНДИ КЕРУВАННЯ (СТРОГО ЧЕРЕЗ ВІДПОВІДЬ/РЕПЛАЙ) ====================
+
+# 3. ДОБАВЛЕННЯ В ЕЛІТУ (Через реплай словом !элита)
+@dp.message(F.reply_to_message & (F.text.strip().lower() == "!элита"))
 async def add_to_elite(message: types.Message):
     if not is_admin(message):
         return
@@ -102,30 +105,36 @@ async def add_to_elite(message: types.Message):
     save_data(data)
     await message.reply(f"{username} добавлен в список элиты! 👑 Его больше нельзя занести в тетрадку.")
 
-# 3. ВЫВОД СПИСКА ЭЛИТЫ (Теперь по простому одиночному слову !иммунитет)
-@dp.message(F.text.regexp(r'(?i)^!иммунитет(\s|$)'))
-async def show_elite_list(message: types.Message):
-    data = load_data()
-    elite_str = ", ".join(data["elite"]) if data["elite"] else "Пусто"
-    text = f"👑 **Список неприкасаемой элиты чата:**\n\n{elite_str}"
-    await message.reply(text, parse_mode="Markdown")
+# 4. ДОБАВЛЕННЯ В ТЕТРАДКУ (По слову !тетрадка або !пидор через реплай)
+@dp.message(F.reply_to_message & ((F.text.strip().lower() == "!тетрадка") | (F.text.strip().lower() == "!пидор")))
+async def add_to_list(message: types.Message):
+    if not is_admin(message):
+        return
+        
+    username = get_comment_author_name(message.reply_to_message)
+    if username in ["Telegram", "Неизвестный нарушитель"] and message.reply_to_message.from_user:
+        username = str(message.reply_to_message.from_user.full_name)
 
-# 4. ВЫВОД СПИСКА ТЕТРАДКИ (По команде !список)
-@dp.message(F.text.regexp(r'(?i)^!список(\s|$)'))
-async def show_list(message: types.Message):
     data = load_data()
-    pencil_str = ", ".join(data["pencil"]) if data["pencil"] else "Пусто"
-    forever_str = ", ".join(data["forever"]) if data["forever"] else "Пусто"
-    
-    text = (
-        "**Список пидорасов, которых я ненавижу:**\n\n"
-        f"✏️ **Карандашиком:**\n{pencil_str}\n\n"
-        f"🔒 **Навсегда:**\n{forever_str}"
-    )
-    await message.reply(text, parse_mode="Markdown")
+    if username in data["elite"]:
+        await message.reply(f"Этого пользователя нельзя добавить в тетрадку, он в списке элиты! 👑")
+        return
+    if username in data["forever"]:
+        await message.reply(f"{username} уже в тетрадке пидерасов навсегда. Тут без шансов.")
+        return
+        
+    if username in data["pencil"]:
+        data["pencil"].remove(username)
+        data["forever"].append(username)
+        save_data(data)
+        await message.reply(f"{username} в тетрадке пидорасов навсегда. ⛔")
+    else:
+        data["pencil"].append(username)
+        save_data(data)
+        await message.reply(f"{username} в тетрадке пидорасов, но пока карандашиком. ✏️")
 
 # 5. ОЧИСТКА КАРАНДАШИКА (Через реплай словом !удалить)
-@dp.message(F.reply_to_message & F.text.lower().contains("!удалить"))
+@dp.message(F.reply_to_message & (F.text.strip().lower() == "!удалить"))
 async def remove_from_pencil(message: types.Message):
     if not is_admin(message):
         return
