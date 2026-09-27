@@ -3,13 +3,13 @@ import json
 import os
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
+from aiohttp import web
 
 TOKEN = "8905219706:AAEhUewTdjcom8ofzKraGs8F-jTX4_HZ9Sw"
-ADMIN_ID = 1737246390
+ADMIN_ID = 1737246390 
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
-
 DATA_FILE = "pidor_list.json"
 
 def load_data():
@@ -47,7 +47,7 @@ async def show_list(message: types.Message):
     data = load_data()
     pencil_str = ", ".join(data["pencil"]) if data["pencil"] else "Пусто"
     forever_str = ", ".join(data["forever"]) if data["forever"] else "Пусто"
-    text = f" **Список пидорасов, которых я ненавижу:**\n\n✏️ **Карандашиком:**\n{pencil_str}\n\n🔒 **Навсегда:**\n{forever_str}"
+    text = f"📊 **Действующая тетрадка:**\n\n✏️ **Карандашиком:**\n{pencil_str}\n\n🔒 **Навсегда:**\n{forever_str}"
     await message.reply(text, parse_mode="Markdown")
 
 @dp.message(Command("удалить", prefix="!"))
@@ -63,13 +63,25 @@ async def remove_from_pencil(message: types.Message):
     if target_username in data["pencil"]:
         data["pencil"].remove(target_username)
         save_data(data)
-        await message.reply(f"Стерто. {target_username} удален из тетрадки карандашиком.")
+        await message.reply(f"Стерто. {target_username} удален из тетрадки карандашиком. 🧽")
     elif target_username in data["forever"]:
         await message.reply("Этого уже не стереть, он в тетрадке навсегда. 🗿")
     else:
         await message.reply("Этого пользователя нет в тетрадке карандашиком.")
 
+# Фейкова веб-сторінка для Render
+async def handle(request):
+    return web.Response(text="Bot is running!")
+
 async def main():
+    # Запуск фейкового сайту на порту, який вимагає Render
+    app = web.Application()
+    app.router.add_get('/', handle)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', int(os.environ.get("PORT", 10000)))
+    await site.start()
+    
     print("Бот фурыжит...")
     await dp.start_polling(bot)
 
