@@ -12,7 +12,7 @@ bot = Bot(token=TOKEN)
 dp = Dispatcher()
 DATA_FILE = "pidor_list.json"
 
-# Завантаження та збереження бази даних
+# Загрузка и сохранение базы данных
 def load_data():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r", encoding="utf-8") as f:
@@ -30,7 +30,7 @@ def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-# Перевірка прав адміністратора
+# Проверка прав администратора
 def is_admin(message: types.Message):
     if message.from_user.id == ADMIN_ID:
         return True
@@ -38,7 +38,7 @@ def is_admin(message: types.Message):
         return True
     return False
 
-# Насправді ім'я автора з коментарів
+# Настоящее имя автора из комментариев
 def get_comment_author_name(reply_message: types.Message) -> str:
     if reply_message.author_signature:
         return str(reply_message.author_signature)
@@ -52,27 +52,9 @@ def get_comment_author_name(reply_message: types.Message) -> str:
     return "Неизвестный нарушитель"
 
 
-# ==================== КОМАНДИ ВИВЕДЕННЯ СПИСКІВ (ПРОСТО ТЕКСТОМ) ====================
+# ==================== КОМАНДЫ ВЫВОДА СПИСКОВ (ПРОСТО ТЕКСТОМ) ====================
 
-# 1. ВИВЕДЕННЯ СПИСКА ТЕТРАДКИ (По команді !список)
-@dp.message(F.text.strip().lower().startswith("!список"))
-async def show_list(message: types.Message):
-    # Якщо це команда еліти, пропускаємо її, щоб спрацював сусідній обробник
-    if message.text.strip().lower().startswith("!список_элиты"):
-        return
-        
-    data = load_data()
-    pencil_str = ", ".join(data["pencil"]) if data["pencil"] else "Пусто"
-    forever_str = ", ".join(data["forever"]) if data["forever"] else "Пусто"
-    
-    text = (
-        "**Список py_known_me_for_long_time, которых я ненавижу:**\n\n"
-        f"✏️ **Карандашиком:**\n{pencil_str}\n\n"
-        f"🔒 **Навсегда:**\n{forever_str}"
-    )
-    await message.reply(text, parse_mode="Markdown")
-
-# 2. ВИВЕДЕННЯ СПИСКА ЕЛІТИ (Тепер один в один як верхній список!)
+# 1. ВЫВОД СПИСКА ЭЛИТЫ (СТАВИМ НА ПЕРВОЕ МЕСТО, ЧТОБЫ БОТ НЕ ПУТАЛ КОМАНДЫ)
 @dp.message(F.text.strip().lower().startswith("!список_элиты"))
 async def show_elite_list(message: types.Message):
     data = load_data()
@@ -80,10 +62,24 @@ async def show_elite_list(message: types.Message):
     text = f"👑 **Список неприкасаемой элиты чата:**\n\n{elite_str}"
     await message.reply(text, parse_mode="Markdown")
 
+# 2. ВЫВОД СПИСКА ТЕТРАДКИ (По команде !список)
+@dp.message(F.text.strip().lower().startswith("!список"))
+async def show_list(message: types.Message):
+    data = load_data()
+    pencil_str = ", ".join(data["pencil"]) if data["pencil"] else "Пусто"
+    forever_str = ", ".join(data["forever"]) if data["forever"] else "Пусто"
+    
+    text = (
+        "**Список пидерасов, которых я ненавижу:**\n\n"
+        f"✏️ **Карандашиком:**\n{pencil_str}\n\n"
+        f"🔒 **Навсегда:**\n{forever_str}"
+    )
+    await message.reply(text, parse_mode="Markdown")
 
-# ==================== КОМАНДИ КЕРУВАННЯ (СТРОГО ЧЕРЕЗ ВІДПОВІДЬ/РЕПЛАЙ) ====================
 
-# 3. ДОБАВЛЕННЯ В ЕЛІТУ (Через реплай словом !элита)
+# ==================== КОМАНДЫ УПРАВЛЕНИЯ (СТРОГО ЧЕРЕЗ РЕПЛАЙ) ====================
+
+# 3. ДОБАВЛЕНИЕ В ЭЛИТУ (Через реплай словом !элита)
 @dp.message(F.reply_to_message & (F.text.strip().lower() == "!элита"))
 async def add_to_elite(message: types.Message):
     if not is_admin(message):
@@ -105,7 +101,7 @@ async def add_to_elite(message: types.Message):
     save_data(data)
     await message.reply(f"{username} добавлен в список элиты! 👑 Его больше нельзя занести в тетрадку.")
 
-# 4. ДОБАВЛЕННЯ В ТЕТРАДКУ (По слову !тетрадка або !пидор через реплай)
+# 4. ДОБАВЛЕНИЕ В ТЕТРАДКУ (По словам !тетрадка или !пидор через реплай)
 @dp.message(F.reply_to_message & ((F.text.strip().lower() == "!тетрадка") | (F.text.strip().lower() == "!пидор")))
 async def add_to_list(message: types.Message):
     if not is_admin(message):
