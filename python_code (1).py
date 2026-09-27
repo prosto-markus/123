@@ -13,23 +13,29 @@ bot = Bot(token=TOKEN)
 dp = Dispatcher()
 DATA_FILE = "pidor_list.json"
 
-# Загрузка и сохранение базы данных
+# Безопасная загрузка базы данных
 def load_data():
-    if os.path.exists(DATA_FILE):
+    if not os.path.exists(DATA_FILE) or os.path.getsize(DATA_FILE) == 0:
+        return {"pencil": [], "forever": [], "elite": []}
+    try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
-            try:
-                data = json.load(f)
-            except Exception:
-                data = {}
+            data = json.load(f)
+            if not isinstance(data, dict): data = {}
             if "pencil" not in data or not isinstance(data["pencil"], list): data["pencil"] = []
             if "forever" not in data or not isinstance(data["forever"], list): data["forever"] = []
             if "elite" not in data or not isinstance(data["elite"], list): data["elite"] = []
             return data
-    return {"pencil": [], "forever": [], "elite": []}
+    except Exception:
+        # Если файл поврежден, возвращаем чистую структуру, чтобы бот не падал
+        return {"pencil": [], "forever": [], "elite": []}
 
+# Безопасное сохранение базы данных (с принудительной кодировкой UTF-8)
 def save_data(data):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
+    try:
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+    except Exception as e:
+        print(f"Ошибка сохранения базы: {e}")
 
 # Проверка прав администратора
 def is_admin(message: types.Message):
@@ -55,21 +61,21 @@ def get_comment_author_name(reply_message: types.Message) -> str:
 
 # ==================== КОМАНДЫ ВЫВОДА СПИСКОВ (ПРОСТО ТЕКСТОМ) ====================
 
-# 1. ВЫВОД СПИСКА ЭЛИТЫ (По новому уникальному слову !ангелы — сделано один в один как !список)
+# 1. ВЫВОД СПИСКА ЭЛИТЫ (По команде !ангелы)
 @dp.message(F.text.regexp(r'(?i)^!ангелы(\s|$)'))
 async def show_elite_list(message: types.Message):
     data = load_data()
-    clean_elite = [str(x) for x in data["elite"] if isinstance(x, str) and x]
+    clean_elite = [str(x) for x in data["elite"] if x and isinstance(x, str)]
     elite_str = ", ".join(clean_elite) if clean_elite else "Пусто"
     text = f"👑 **Список неприкасаемой элиты чата:**\n\n{elite_str}"
     await message.reply(text, parse_mode="Markdown")
 
-# 2. ВЫВОД СПИСКА ТЕТРАДКИ (По команде !список — ваша рабочая схема)
+# 2. ВЫВОД СПИСКА ТЕТРАДКИ (По команде !список)
 @dp.message(F.text.regexp(r'(?i)^!список(\s|$)'))
 async def show_list(message: types.Message):
     data = load_data()
-    clean_pencil = [str(x) for x in data["pencil"] if isinstance(x, str) and x]
-    clean_forever = [str(x) for x in data["forever"] if isinstance(x, str) and x]
+    clean_pencil = [str(x) for x in data["pencil"] if x and isinstance(x, str)]
+    clean_forever = [str(x) for x in data["forever"] if x and isinstance(x, str)]
     
     pencil_str = ", ".join(clean_pencil) if clean_pencil else "Пусто"
     forever_str = ", ".join(clean_forever) if clean_forever else "Пусто"
@@ -85,7 +91,7 @@ async def show_list(message: types.Message):
 # ==================== КОМАНДЫ УПРАВЛЕНИЯ (СТРОГО ЧЕРЕЗ РЕПЛАЙ) ====================
 
 # 3. ДОБАВЛЕНИЕ В ЭЛИТУ (Через реплай словом !элита)
-@dp.message(F.reply_to_message & F.text.lower().contains("!элита"))
+@dp.message(F.reply_to_message & F.text.regexp(r'(?i)^!элита(\s|$)'))
 async def add_to_elite(message: types.Message):
     if not is_admin(message):
         return
