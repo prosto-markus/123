@@ -5,7 +5,6 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiohttp import web
 
-
 TOKEN = "8905219706:AAEhUewTdjcom8ofzKraGs8F-jTX4_HZ9Sw" 
 ADMIN_ID = 1737246390 
 
@@ -53,22 +52,29 @@ def get_comment_author_name(reply_message: types.Message) -> str:
     return "Неизвестный нарушитель"
 
 
-# ==================== КОМАНДЫ ВЫВОДА СПИСКОВ (ПРОСТО ТЕКСТОМ) ====================
+# ==================== ОФИЦИАЛЬНЫЕ СИСТЕМНЫЕ КОМАНДЫ (БЕЗ РЕПЛАЕВ) ====================
 
-# 1. ВЫВОД СПИСКА ЭЛИТЫ (По новой уникальной команде !неприкасаемые)
-@dp.message(F.text.strip().lower().startswith("!неприкасаемые"))
+# 1. ВЫВОД СПИСКА ЭЛИТЫ (По официальной команде /элита)
+@dp.message(Command("элита"))
 async def show_elite_list(message: types.Message):
+    # Если это был реплай, пропускаем эту функцию (чтобы сработало добавление)
+    if message.reply_to_message:
+        return
     data = load_data()
-    elite_str = ", ".join(data["elite"]) if data["elite"] else "Пусто"
+    clean_elite = [str(x) for x in data["elite"] if isinstance(x, str) and x]
+    elite_str = ", ".join(clean_elite) if clean_elite else "Пусто"
     text = f"👑 **Список неприкасаемой элиты чата:**\n\n{elite_str}"
     await message.reply(text, parse_mode="Markdown")
 
-# 2. ВЫВОД СПИСКА ТЕТРАДКИ (По команде !список)
-@dp.message(F.text.strip().lower().startswith("!список"))
+# 2. ВЫВОД СПИСКА ТЕТРАДКИ (По официальной команде /список)
+@dp.message(Command("список"))
 async def show_list(message: types.Message):
     data = load_data()
-    pencil_str = ", ".join(data["pencil"]) if data["pencil"] else "Пусто"
-    forever_str = ", ".join(data["forever"]) if data["forever"] else "Пусто"
+    clean_pencil = [str(x) for x in data["pencil"] if isinstance(x, str) and x]
+    clean_forever = [str(x) for x in data["forever"] if isinstance(x, str) and x]
+    
+    pencil_str = ", ".join(clean_pencil) if clean_pencil else "Пусто"
+    forever_str = ", ".join(clean_forever) if clean_forever else "Пусто"
     
     text = (
         "**Список пидерасов, которых я ненавижу:**\n\n"
