@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import re
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiohttp import web
@@ -38,12 +39,11 @@ def is_admin(message: types.Message):
         return True
     return False
 
-# Вспомогательная функция для поиска ника с собачкой в тексте
-def get_target_username(text: str):
-    words = text.split()
-    for word in words:
-        if word.startswith("@") and len(word) > 1:
-            return word
+# Идеальный поиск юзернейма в тексте через регулярное выражение
+def extract_username(text: str):
+    match = re.search(r'@[a-zA-Z0-9_]{3,32}', text)
+    if match:
+        return match.group(0)
     return None
 
 # 1. Управление ТЕТРАДКОЙ (Добавление по нику ИЛИ просмотр статистики)
@@ -52,10 +52,10 @@ async def handle_notebook(message: types.Message):
     raw_text = message.text.strip()
     data = load_data()
     
-    # Ищем, есть ли в сообщении ник с собачкой @
-    username = get_target_username(raw_text)
+    # Ищем юзернейм с собачкой в тексте
+    username = extract_username(raw_text)
     
-    # ЕСЛИ НИКА НЕТ (написано просто "!тетрадка") — выводим список для ВСЕХ
+    # ЕСЛИ НИКА НЕТ — выводим список для ВСЕХ
     if not username:
         pencil_str = ", ".join(data["pencil"]) if data["pencil"] else "Пусто"
         forever_str = ", ".join(data["forever"]) if data["forever"] else "Пусто"
@@ -67,7 +67,6 @@ async def handle_notebook(message: types.Message):
     if not is_admin(message):
         return
         
-    # Проверка на элиту
     if username in data["elite"]:
         await message.reply(f"Этого пользователя нельзя добавить в тетрадку, он в списке элиты! 👑")
         return
@@ -92,7 +91,7 @@ async def handle_elite(message: types.Message):
     if not is_admin(message):
         return
         
-    username = get_target_username(message.text)
+    username = extract_username(message.text)
     if not username:
         await message.reply("Укажите ник с собачкой. Пример: `!элита @username`")
         return
@@ -109,7 +108,7 @@ async def handle_elite(message: types.Message):
         
     data["elite"].append(username)
     save_data(data)
-    await message.reply(f"{username} добавлен в список элиты! 👑 Его больше нельзя занести в тетрадку.")
+    await message.reply(f"{username} добавлен в список элиты! 👑 Его больше нельзя занести in тетрадку.")
 
 # 3. Удаление из списка элиты (команда !убрать_элиту @username)
 @dp.message(F.text.strip().lower().startswith("!убрать_элиту"))
@@ -117,7 +116,7 @@ async def remove_from_elite(message: types.Message):
     if not is_admin(message):
         return
         
-    username = get_target_username(message.text)
+    username = extract_username(message.text)
     if not username:
         await message.reply("Укажите ник. Пример: `!убрать_элиту @username`")
         return
@@ -144,7 +143,7 @@ async def remove_from_pencil(message: types.Message):
     if not is_admin(message):
         return
         
-    username = get_target_username(message.text)
+    username = extract_username(message.text)
     if not username:
         await message.reply("Укажите ник. Пример: `!удалить @username`")
         return
