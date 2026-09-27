@@ -26,13 +26,23 @@ def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
+# Функция проверки прав (Слушается вас лично ИЛИ вас, когда вы пишете от имени Канала/Группы)
+def is_admin(message: types.Message):
+    # 1. Проверка по вашему личному ID
+    if message.from_user.id == ADMIN_ID:
+        return True
+    # 2. Проверка, если сообщение отправлено от имени канала или анонимного создателя чата
+    if message.sender_chat and message.sender_chat.id:
+        return True
+    return False
+
 # 1. Управление ТЕТРАДКОЙ (Добавление по нику ИЛИ просмотр статистики для ВСЕХ)
 @dp.message(F.text.strip().lower().startswith("!тетрадка"))
 async def handle_notebook(message: types.Message):
     args = message.text.split()
     data = load_data()
     
-    # ЕСЛИ НАПИСАНО ПРОСТО "!тетрадка" — выводим список для ВСЕХ пользователей
+    # ЕСЛИ НАПИСАНО ПРОСТО "!тетрадка" — выводим список для ВСЕХ
     if len(args) == 1:
         pencil_str = ", ".join(data["pencil"]) if data["pencil"] else "Пусто"
         forever_str = ", ".join(data["forever"]) if data["forever"] else "Пусто"
@@ -40,8 +50,8 @@ async def handle_notebook(message: types.Message):
         await message.reply(text, parse_mode="Markdown")
         return
         
-    # ЕСЛИ НАПИСАНО "!тетрадка @username" — добавлять можете ТОЛЬКО ВЫ (админ)
-    if message.from_user.id != ADMIN_ID:
+    # ЕСЛИ НАПИСАНО "!тетрадка @username" — проверяем права админа
+    if not is_admin(message):
         return
 
     username = args[1]
@@ -49,7 +59,6 @@ async def handle_notebook(message: types.Message):
         await message.reply("Укажите ник пользователя обязательно с собачкой. Пример: `!тетрадка @username`")
         return
         
-    # Проверка на элиту
     if username in data["elite"]:
         await message.reply(f"Этого пользователя нельзя добавить в тетрадку, он в списке элиты! 👑")
         return
@@ -67,10 +76,10 @@ async def handle_notebook(message: types.Message):
         save_data(data)
         await message.reply(f"{username} в тетрадке пидорасов, но пока карандашиком. ✏️")
 
-# 2. Добавление в список ЭЛИТЫ (команда !элита @username — ТОЛЬКО ДЛЯ АДМИНА)
+# 2. Добавление в список ЭЛИТЫ (команда !элита @username)
 @dp.message(F.text.strip().lower().startswith("!элита"))
 async def handle_elite(message: types.Message):
-    if message.from_user.id != ADMIN_ID:
+    if not is_admin(message):
         return
         
     args = message.text.split()
@@ -89,7 +98,6 @@ async def handle_elite(message: types.Message):
         await message.reply(f"{username} уже находится в списке элиты. ✨")
         return
         
-    # Если он был в черных списках, очищаем его оттуда
     if username in data["pencil"]:
         data["pencil"].remove(username)
     if username in data["forever"]:
@@ -99,10 +107,10 @@ async def handle_elite(message: types.Message):
     save_data(data)
     await message.reply(f"{username} добавлен в список элиты! 👑 Его больше нельзя занести в тетрадку.")
 
-# 3. Удаление из списка элиты (команда !убрать_элиту @username — ТОЛЬКО ДЛЯ АДМИНА)
+# 3. Удаление из списка элиты (команда !убрать_элиту @username)
 @dp.message(Command("убрать_элиту", prefix="!"))
 async def remove_from_elite(message: types.Message):
-    if message.from_user.id != ADMIN_ID:
+    if not is_admin(message):
         return
     args = message.text.split()
     if len(args) < 2:
@@ -117,7 +125,7 @@ async def remove_from_elite(message: types.Message):
     else:
         await message.reply("Этого пользователя нет в списке элиты.")
 
-# 4. Вызов списка элиты (ТЕПЕРЬ ДОСТУПНО ДЛЯ ВСЕХ ПОЛЬЗОВАТЕЛЕЙ ЧАТА)
+# 4. Вызов списка элиты (доступно для всех)
 @dp.message(Command("список_элиты", prefix="!"))
 async def show_elite_list(message: types.Message):
     data = load_data()
@@ -125,10 +133,10 @@ async def show_elite_list(message: types.Message):
     text = f"👑 **Список неприкасаемой элиты чата:**\n\n{elite_str}"
     await message.reply(text, parse_mode="Markdown")
 
-# 5. Редактирование (удаление из тетрадки «карандашиком» — ТОЛЬКО ДЛЯ АДМИНА)
+# 5. Редактирование (удаление из тетрадки «карандашиком»)
 @dp.message(Command("удалить", prefix="!"))
 async def remove_from_pencil(message: types.Message):
-    if message.from_user.id != ADMIN_ID:
+    if not is_admin(message):
         return
     args = message.text.split()
     if len(args) < 2:
