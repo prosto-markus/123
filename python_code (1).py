@@ -5,7 +5,7 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiohttp import web
 
-TOKEN = "8905219706:AAEhUewTdjcom8ofzKraGs8F-jTX4_HZ9Sw" 
+TOKEN = "8905219706:AAEhUewTdjcom8ofzKraGs8F-jTX4_HZ9Sw"
 ADMIN_ID = 1737246390 
 
 bot = Bot(token=TOKEN)
@@ -38,30 +38,35 @@ def is_admin(message: types.Message):
         return True
     return False
 
+# Вспомогательная функция для поиска ника с собачкой в тексте
+def get_target_username(text: str):
+    words = text.split()
+    for word in words:
+        if word.startswith("@") and len(word) > 1:
+            return word
+    return None
+
 # 1. Управление ТЕТРАДКОЙ (Добавление по нику ИЛИ просмотр статистики)
 @dp.message(F.text.strip().lower().startswith("!тетрадка"))
 async def handle_notebook(message: types.Message):
     raw_text = message.text.strip()
     data = load_data()
     
-    # Отсекаем саму команду, чтобы забрать только то, что написано после неё
-    potential_username = raw_text[10:].strip()
+    # Ищем, есть ли в сообщении ник с собачкой @
+    username = get_target_username(raw_text)
     
-    # ЕСЛИ НАПИСАНО ПРОСТО "!тетрадка" — выводим список для ВСЕХ
-    if not potential_username:
+    # ЕСЛИ НИКА НЕТ (написано просто "!тетрадка") — выводим список для ВСЕХ
+    if not username:
         pencil_str = ", ".join(data["pencil"]) if data["pencil"] else "Пусто"
         forever_str = ", ".join(data["forever"]) if data["forever"] else "Пусто"
         text = f"**Список пидорасов, которых я ненавижу:**\n\n✏️ **Карандашиком:**\n{pencil_str}\n\n🔒 **Навсегда:**\n{forever_str}"
         await message.reply(text, parse_mode="Markdown")
         return
         
-    # ЕСЛИ НАПИСАНО "!тетрадка @username" — добавляем человека
+    # ЕСЛИ НИК ЕСТЬ — добавляем человека (только админ)
     if not is_admin(message):
         return
-
-    # Защита, если ник ввели без собачки
-    username = potential_username if potential_username.startswith("@") else f"@{potential_username}"
-    
+        
     # Проверка на элиту
     if username in data["elite"]:
         await message.reply(f"Этого пользователя нельзя добавить в тетрадку, он в списке элиты! 👑")
@@ -87,16 +92,12 @@ async def handle_elite(message: types.Message):
     if not is_admin(message):
         return
         
-    raw_text = message.text.strip()
-    potential_username = raw_text[6:].strip()
-    
-    if not potential_username:
-        await message.reply("Укажите ник. Пример: `!элита @username`")
+    username = get_target_username(message.text)
+    if not username:
+        await message.reply("Укажите ник с собачкой. Пример: `!элита @username`")
         return
         
-    username = potential_username if potential_username.startswith("@") else f"@{potential_username}"
     data = load_data()
-    
     if username in data["elite"]:
         await message.reply(f"{username} уже находится в списке элиты. ✨")
         return
@@ -115,19 +116,17 @@ async def handle_elite(message: types.Message):
 async def remove_from_elite(message: types.Message):
     if not is_admin(message):
         return
-    raw_text = message.text.strip()
-    potential_username = raw_text[13:].strip()
-    
-    if not potential_username:
+        
+    username = get_target_username(message.text)
+    if not username:
         await message.reply("Укажите ник. Пример: `!убрать_элиту @username`")
         return
         
-    target_username = potential_username if potential_username.startswith("@") else f"@{potential_username}"
     data = load_data()
-    if target_username in data["elite"]:
-        data["elite"].remove(target_username)
+    if username in data["elite"]:
+        data["elite"].remove(username)
         save_data(data)
-        await message.reply(f"{target_username} лишен статуса элиты. Теперь он обычный смертный. 🧽")
+        await message.reply(f"{username} лишен статуса элиты. Теперь он обычный смертный. 🧽")
     else:
         await message.reply("Этого пользователя нет в списке элиты.")
 
@@ -144,20 +143,18 @@ async def show_elite_list(message: types.Message):
 async def remove_from_pencil(message: types.Message):
     if not is_admin(message):
         return
-    raw_text = message.text.strip()
-    potential_username = raw_text[8:].strip()
-    
-    if not potential_username:
+        
+    username = get_target_username(message.text)
+    if not username:
         await message.reply("Укажите ник. Пример: `!удалить @username`")
         return
         
-    target_username = potential_username if potential_username.startswith("@") else f"@{potential_username}"
     data = load_data()
-    if target_username in data["pencil"]:
-        data["pencil"].remove(target_username)
+    if username in data["pencil"]:
+        data["pencil"].remove(username)
         save_data(data)
-        await message.reply(f"Стерто. {target_username} удален из тетрадки карандашиком. 🧽")
-    elif target_username in data["forever"]:
+        await message.reply(f"Стерто. {username} удален из тетрадки карандашиком. 🧽")
+    elif username in data["forever"]:
         await message.reply("Этого уже не стереть, он в тетрадке навсегда. 🗿")
     else:
         await message.reply("Этого пользователя нет в тетрадке карандашиком.")
