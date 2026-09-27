@@ -5,6 +5,7 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiohttp import web
 
+
 TOKEN = "8905219706:AAEhUewTdjcom8ofzKraGs8F-jTX4_HZ9Sw" 
 ADMIN_ID = 1737246390 
 
@@ -54,8 +55,8 @@ def get_comment_author_name(reply_message: types.Message) -> str:
 
 # ==================== КОМАНДЫ ВЫВОДА СПИСКОВ (ПРОСТО ТЕКСТОМ) ====================
 
-# 1. ВЫВОД СПИСКА ЭЛИТЫ (СТАВИМ НА ПЕРВОЕ МЕСТО, ЧТОБЫ БОТ НЕ ПУТАЛ КОМАНДЫ)
-@dp.message(F.text.strip().lower().startswith("!список_элиты"))
+# 1. ВЫВОД СПИСКА ЭЛИТЫ (По новой уникальной команде !неприкасаемые)
+@dp.message(F.text.strip().lower().startswith("!неприкасаемые"))
 async def show_elite_list(message: types.Message):
     data = load_data()
     elite_str = ", ".join(data["elite"]) if data["elite"] else "Пусто"
