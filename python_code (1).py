@@ -112,7 +112,7 @@ async def show_list(message: types.Message):
     data = load_data()
     pencil_str = ", ".join(data["pencil"]) if data["pencil"] else "Пусто"
     forever_str = ", ".join(data["forever"]) if data["forever"] else "Пусто"
-    text = f"**Список пидорасов, которых я延ненавижу:**\n\n✏️ **Карандашиком:**\n{pencil_str}\n\n🔒 **Навсегда:**\n{forever_str}"
+    text = f"**Список пидорасов, которых я ненавижу:**\n\n✏️ **Карандашиком:**\n{pencil_str}\n\n🔒 **Навсегда:**\n{forever_str}"
     await message.reply(text, parse_mode="Markdown")
 
 # 6. Редактирование (удаление из тетрадки «карандашиком»)
