@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import re
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiohttp import web
@@ -52,22 +53,19 @@ def get_comment_author_name(reply_message: types.Message) -> str:
     return "Неизвестный нарушитель"
 
 
-# ==================== ОФИЦИАЛЬНЫЕ СИСТЕМНЫЕ КОМАНДЫ (БЕЗ РЕПЛАЕВ) ====================
+# ==================== КОМАНДЫ ВЫВОДА СПИСКОВ (ПРОСТО ТЕКСТОМ) ====================
 
-# 1. ВЫВОД СПИСКА ЭЛИТЫ (По официальной команде /элита)
-@dp.message(Command("элита"))
+# 1. ВЫВОД СПИСКА ЭЛИТЫ (По новому уникальному слову !ангелы — сделано один в один как !список)
+@dp.message(F.text.regexp(r'(?i)^!ангелы(\s|$)'))
 async def show_elite_list(message: types.Message):
-    # Если это был реплай, пропускаем эту функцию (чтобы сработало добавление)
-    if message.reply_to_message:
-        return
     data = load_data()
     clean_elite = [str(x) for x in data["elite"] if isinstance(x, str) and x]
     elite_str = ", ".join(clean_elite) if clean_elite else "Пусто"
     text = f"👑 **Список неприкасаемой элиты чата:**\n\n{elite_str}"
     await message.reply(text, parse_mode="Markdown")
 
-# 2. ВЫВОД СПИСКА ТЕТРАДКИ (По официальной команде /список)
-@dp.message(Command("список"))
+# 2. ВЫВОД СПИСКА ТЕТРАДКИ (По команде !список — ваша рабочая схема)
+@dp.message(F.text.regexp(r'(?i)^!список(\s|$)'))
 async def show_list(message: types.Message):
     data = load_data()
     clean_pencil = [str(x) for x in data["pencil"] if isinstance(x, str) and x]
@@ -87,7 +85,7 @@ async def show_list(message: types.Message):
 # ==================== КОМАНДЫ УПРАВЛЕНИЯ (СТРОГО ЧЕРЕЗ РЕПЛАЙ) ====================
 
 # 3. ДОБАВЛЕНИЕ В ЭЛИТУ (Через реплай словом !элита)
-@dp.message(F.reply_to_message & (F.text.strip().lower() == "!элита"))
+@dp.message(F.reply_to_message & F.text.lower().contains("!элита"))
 async def add_to_elite(message: types.Message):
     if not is_admin(message):
         return
@@ -109,7 +107,7 @@ async def add_to_elite(message: types.Message):
     await message.reply(f"{username} добавлен в список элиты! 👑 Его больше нельзя занести в тетрадку.")
 
 # 4. ДОБАВЛЕНИЕ В ТЕТРАДКУ (По словам !тетрадка или !пидор через реплай)
-@dp.message(F.reply_to_message & ((F.text.strip().lower() == "!тетрадка") | (F.text.strip().lower() == "!пидор")))
+@dp.message(F.reply_to_message & (F.text.lower().contains("!тетрадка") | F.text.lower().contains("!пидор")))
 async def add_to_list(message: types.Message):
     if not is_admin(message):
         return
@@ -137,7 +135,7 @@ async def add_to_list(message: types.Message):
         await message.reply(f"{username} в тетрадке пидорасов, но пока карандашиком. ✏️")
 
 # 5. ОЧИСТКА КАРАНДАШИКА (Через реплай словом !удалить)
-@dp.message(F.reply_to_message & (F.text.strip().lower() == "!удалить"))
+@dp.message(F.reply_to_message & F.text.lower().contains("!удалить"))
 async def remove_from_pencil(message: types.Message):
     if not is_admin(message):
         return
