@@ -91,7 +91,7 @@ async def show_list(message: types.Message):
 # ==================== КОМАНДЫ УПРАВЛЕНИЯ (СТРОГО ЧЕРЕЗ РЕПЛАЙ) ====================
 
 # 3. ДОБАВЛЕНИЕ В ЭЛИТУ (Через реплай словом !элита)
-@dp.message(F.reply_to_message & F.text.regexp(r'(?i)^!элита(\s|$)'))
+@dp.message(F.reply_to_message & F.text.lower().contains("!элита"))
 async def add_to_elite(message: types.Message):
     if not is_admin(message):
         return
