@@ -5,7 +5,7 @@ from aiogram import Bot, Dispatcher, types, F
 from aiohttp import web
 
 # Токен берем из переменных окружения (безопасно)
-TOKEN = "8905219706:AAEhUewTdjcom8ofzKraGs8F-jTX4_HZ9Sw"
+TOKEN = os.environ.get("BOT_TOKEN", "8905219706:AAEhUewTdjcom8ofzKraGs8F-jTX4_HZ9Sw")
 ADMIN_ID = 1737246390
 
 bot = Bot(token=TOKEN)
@@ -73,7 +73,7 @@ async def show_list(message: types.Message):
     forever_str = ", ".join(clean_forever) if clean_forever else "Пусто"
     
     text = (
-        "<b>Список пидорасов, которых я ненавижу:</b>\n\n"
+        "<b>Список пидерасов, которых я ненавижу:</b>\n\n"
         f"✏️ <b>Карандашиком:</b>\n{pencil_str}\n\n"
         f"🔒 <b>Навсегда:</b>\n{forever_str}"
     )
