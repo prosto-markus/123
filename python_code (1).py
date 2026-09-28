@@ -1,43 +1,65 @@
 import asyncio
-import json
 import os
+import re
 from aiogram import Bot, Dispatcher, types, F
-from aiohttp import web
+from aiohttp import web, ClientSession
 
-# Токен берем из переменных окружения (безопасно)
-TOKEN = os.environ.get("BOT_TOKEN", "8905219706:AAEhUewTdjcom8ofzKraGs8F-jTX4_HZ9Sw")
+# Токен бота
+TOKEN = "8905219706:AAEhUewTdjcom8ofzKraGs8F-jTX4_HZ9Sw"
+
+# Укажите ваши ID
 ADMIN_ID = 1737246390
+CHANNEL_ID = -1003506217494
+
+# Ключи JSONBin (вставьте ваши текстовые значения в кавычки)
+JSONBIN_BIN_ID = "6ab9fb53ffd5d1605336756f"
+JSONBIN_KEY = "$2a$10$6QcyxPOAJ1Lsu5wSqN1YBur2XtSPujA43PrX2/KqjRS33J6Y2ylaW"
+JSONBIN_URL = f"https://api.jsonbin.io/v3/b/{JSONBIN_BIN_ID}"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
-DATA_FILE = "pidor_list.json"
 
-# Безопасная загрузка базы данных
-def load_data():
-    if not os.path.exists(DATA_FILE) or os.path.getsize(DATA_FILE) == 0:
-        return {"pencil": [], "forever": [], "elite": []}
+# Загрузка данных из облака
+async def load_data():
+    headers = {
+        "X-Master-Key": JSONBIN_KEY,
+        "X-Bin-Meta": "false"
+    }
     try:
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            if not isinstance(data, dict): data = {}
-            if "pencil" not in data or not isinstance(data["pencil"], list): data["pencil"] = []
-            if "forever" not in data or not isinstance(data["forever"], list): data["forever"] = []
-            if "elite" not in data or not isinstance(data["elite"], list): data["elite"] = []
-            return data
-    except Exception:
-        return {"pencil": [], "forever": [], "elite": []}
-
-# Безопасное сохранение базы данных
-def save_data(data):
-    try:
-        with open(DATA_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=4)
+        async with ClientSession() as session:
+            async with session.get(JSONBIN_URL, headers=headers) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if not isinstance(data, dict): data = {}
+                    if "pencil" not in data or not isinstance(data["pencil"], list): data["pencil"] = []
+                    if "forever" not in data or not isinstance(data["forever"], list): data["forever"] = []
+                    if "elite" not in data or not isinstance(data["elite"], list): data["elite"] = []
+                    return data
     except Exception as e:
-        print(f"Ошибка сохранения базы: {e}")
+        print(f"Ошибка загрузки из облака: {e}")
+    return {"pencil": [], "forever": [], "elite": []}
 
-# Проверка прав администратора
-def is_admin(message: types.Message):
-    return message.from_user and message.from_user.id == ADMIN_ID
+# Сохранение данных в облако
+async def save_data(data):
+    headers = {
+        "Content-Type": "application/json",
+        "X-Master-Key": JSONBIN_KEY
+    }
+    try:
+        async with ClientSession() as session:
+            async with session.put(JSONBIN_URL, json=data, headers=headers) as resp:
+                if resp.status != 200:
+                    print(f"Ошибка сохранения JSONBin: {resp.status}")
+    except Exception as e:
+        print(f"Ошибка соединения с облаком: {e}")
+
+# Проверка админа (личный аккаунт или канал)
+def is_admin(message: types.Message) -> bool:
+    if message.from_user and message.from_user.id == ADMIN_ID:
+        return True
+    if message.sender_chat and message.sender_chat.id == CHANNEL_ID:
+        return True
+    return False
 
 # Получение имени автора
 def get_comment_author_name(reply_message: types.Message) -> str:
@@ -53,11 +75,11 @@ def get_comment_author_name(reply_message: types.Message) -> str:
     return "Неизвестный нарушитель"
 
 
-# ==================== КОМАНДЫ ВЫВОДА СПИСКОВ ====================
+# ==================== ВЫВОД СПИСКОВ ====================
 
 @dp.message(F.text.regexp(r'(?i)^!ангелы(\s|$)'))
 async def show_elite_list(message: types.Message):
-    data = load_data()
+    data = await load_data()
     clean_elite = [str(x) for x in data["elite"] if x and isinstance(x, str)]
     elite_str = ", ".join(clean_elite) if clean_elite else "Пусто"
     text = f"👑 <b>Список неприкасаемой элиты чата:</b>\n\n{elite_str}"
@@ -65,7 +87,7 @@ async def show_elite_list(message: types.Message):
 
 @dp.message(F.text.regexp(r'(?i)^!список(\s|$)'))
 async def show_list(message: types.Message):
-    data = load_data()
+    data = await load_data()
     clean_pencil = [str(x) for x in data["pencil"] if x and isinstance(x, str)]
     clean_forever = [str(x) for x in data["forever"] if x and isinstance(x, str)]
     
@@ -73,25 +95,24 @@ async def show_list(message: types.Message):
     forever_str = ", ".join(clean_forever) if clean_forever else "Пусто"
     
     text = (
-        "<b>Список пидерасов, которых я ненавижу:</b>\n\n"
+        "<b>Список пидорасов, которых я ненавижу:</b>\n\n"
         f"✏️ <b>Карандашиком:</b>\n{pencil_str}\n\n"
         f"🔒 <b>Навсегда:</b>\n{forever_str}"
     )
     await message.reply(text, parse_mode="HTML")
 
 
-# ==================== КОМАНДЫ УПРАВЛЕНИЯ (РЕПЛАЙ) ====================
+# ==================== УПРАВЛЕНИЕ ЧЕРЕЗ РЕПЛАЙ ====================
 
-@dp.message(F.reply_to_message & F.text.icontains("!элита"))
+@dp.message(F.reply_to_message & F.text.regexp(r'(?i)^!элита(\s|$)'))
 async def add_to_elite(message: types.Message):
     if not is_admin(message):
+        await message.reply("❌ У вас нет прав для использования этой команды.")
         return
         
     username = get_comment_author_name(message.reply_to_message)
-    if username in ["Telegram", "Неизвестный нарушитель"] and message.reply_to_message.from_user:
-        username = str(message.reply_to_message.from_user.full_name)
-        
-    data = load_data()
+    data = await load_data()
+    
     if username in data["elite"]:
         await message.reply(f"{username} уже находится в списке элиты. ✨")
         return
@@ -100,19 +121,18 @@ async def add_to_elite(message: types.Message):
     if username in data["forever"]: data["forever"].remove(username)
         
     data["elite"].append(username)
-    save_data(data)
+    await save_data(data)
     await message.reply(f"{username} добавлен в список элиты! 👑 Его больше нельзя занести в тетрадку.")
 
-@dp.message(F.reply_to_message & (F.text.icontains("!тетрадка") | F.text.icontains("!пидор")))
+@dp.message(F.reply_to_message & F.text.regexp(r'(?i)^(!тетрадка|!пидор)(\s|$)'))
 async def add_to_list(message: types.Message):
     if not is_admin(message):
+        await message.reply("❌ У вас нет прав для использования этой команды.")
         return
         
     username = get_comment_author_name(message.reply_to_message)
-    if username in ["Telegram", "Неизвестный нарушитель"] and message.reply_to_message.from_user:
-        username = str(message.reply_to_message.from_user.full_name)
-
-    data = load_data()
+    data = await load_data()
+    
     if username in data["elite"]:
         await message.reply("Этого пользователя нельзя добавить в тетрадку, он в списке элиты! 👑")
         return
@@ -123,26 +143,25 @@ async def add_to_list(message: types.Message):
     if username in data["pencil"]:
         data["pencil"].remove(username)
         data["forever"].append(username)
-        save_data(data)
+        await save_data(data)
         await message.reply(f"{username} в тетрадке пидорасов навсегда. ⛔")
     else:
         data["pencil"].append(username)
-        save_data(data)
+        await save_data(data)
         await message.reply(f"{username} в тетрадке пидорасов, но пока карандашиком. ✏️")
 
-@dp.message(F.reply_to_message & F.text.icontains("!удалить"))
+@dp.message(F.reply_to_message & F.text.regexp(r'(?i)^!удалить(\s|$)'))
 async def remove_from_pencil(message: types.Message):
     if not is_admin(message):
+        await message.reply("❌ У вас нет прав для использования этой команды.")
         return
         
     username = get_comment_author_name(message.reply_to_message)
-    if username in ["Telegram", "Неизвестный нарушитель"] and message.reply_to_message.from_user:
-        username = str(message.reply_to_message.from_user.full_name)
-        
-    data = load_data()
+    data = await load_data()
+    
     if username in data["pencil"]:
         data["pencil"].remove(username)
-        save_data(data)
+        await save_data(data)
         await message.reply(f"Стерто. {username} удален из тетрадки карандашиком. 🧽")
     elif username in data["forever"]:
         await message.reply("Этого уже не стереть, он в тетрадке навсегда. 🗿")
@@ -160,7 +179,7 @@ async def main():
     site = web.TCPSite(runner, '0.0.0.0', int(os.environ.get("PORT", 10000)))
     await site.start()
     
-    print("Бот фурыжит...")
+    print("Бот запущен...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
