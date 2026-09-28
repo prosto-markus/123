@@ -62,31 +62,29 @@ def get_comment_author_name(reply_message: types.Message) -> str:
 # ==================== КОМАНДЫ ВЫВОДА СПИСКОВ (ПРОСТО ТЕКСТОМ) ====================
 
 # 1. ВЫВОД СПИСКА ЭЛИТЫ (По команде !ангелы)
-@dp.message(F.text.regexp(r'(?i)^!ангелы(\s|$)'))
-async def show_elite_list(message: types.Message):
-    data = load_data()
-    clean_elite = [str(x) for x in data["elite"] if x and isinstance(x, str)]
-    elite_str = ", ".join(clean_elite) if clean_elite else "Пусто"
-    text = f"👑 **Список неприкасаемой элиты чата:**\n\n{elite_str}"
-    await message.reply(text, parse_mode="Markdown")
+@dp.message(F.text)
+async def commands_handler(message: types.Message):
+    text = message.text.strip().lower()
 
-# 2. ВЫВОД СПИСКА ТЕТРАДКИ (По команде !список)
-@dp.message(F.text.regexp(r'(?i)^!список(\s|$)'))
-async def show_list(message: types.Message):
-    data = load_data()
-    clean_pencil = [str(x) for x in data["pencil"] if x and isinstance(x, str)]
-    clean_forever = [str(x) for x in data["forever"] if x and isinstance(x, str)]
-    
-    pencil_str = ", ".join(clean_pencil) if clean_pencil else "Пусто"
-    forever_str = ", ".join(clean_forever) if clean_forever else "Пусто"
-    
-    text = (
-        "**Список пидерасов, которых я ненавижу:**\n\n"
-        f"✏️ **Карандашиком:**\n{pencil_str}\n\n"
-        f"🔒 **Навсегда:**\n{forever_str}"
-    )
-    await message.reply(text, parse_mode="Markdown")
+    if text == "!ангелы":
+        data = load_data()
+        elite_str = ", ".join(data["elite"]) if data["elite"] else "Пусто"
 
+        await message.reply(
+            f"👑 Список неприкасаемой элиты чата:\n\n{elite_str}"
+        )
+
+    elif text == "!список":
+        data = load_data()
+
+        pencil_str = ", ".join(data["pencil"]) if data["pencil"] else "Пусто"
+        forever_str = ", ".join(data["forever"]) if data["forever"] else "Пусто"
+
+        await message.reply(
+            f"📖 Список пидорасов:\n\n"
+            f"✏️ Карандашиком:\n{pencil_str}\n\n"
+            f"🔒 Навсегда:\n{forever_str}"
+        )
 
 # ==================== КОМАНДЫ УПРАВЛЕНИЯ (СТРОГО ЧЕРЕЗ РЕПЛАЙ) ====================
 
