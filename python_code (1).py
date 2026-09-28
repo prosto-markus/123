@@ -5,7 +5,7 @@ from aiogram import Bot, Dispatcher, types, F
 from aiohttp import web
 
 # Токен берем из переменных окружения (безопасно)
-TOKEN = os.environ.get("8905219706:AAEhUewTdjcom8ofzKraGs8F-jTX4_HZ9Sw")
+TOKEN = "8905219706:AAEhUewTdjcom8ofzKraGs8F-jTX4_HZ9Sw"
 ADMIN_ID = 1737246390
 
 bot = Bot(token=TOKEN)
