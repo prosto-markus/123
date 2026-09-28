@@ -4,14 +4,14 @@ import re
 from aiogram import Bot, Dispatcher, types, F
 from aiohttp import web, ClientSession
 
-# Токен бота
+# 1. ТОКЕН БОТА:
 TOKEN = "8905219706:AAEhUewTdjcom8ofzKraGs8F-jTX4_HZ9Sw"
 
-# Укажите ваши ID
+# 2. Вкажіть ваші ID:
 ADMIN_ID = 1737246390
 CHANNEL_ID = -1003506217494
 
-# Ключи JSONBin (вставьте ваши текстовые значения в кавычки)
+# 3. Ключі JSONBin:
 JSONBIN_BIN_ID = "6ab9fb53ffd5d1605336756f"
 JSONBIN_KEY = "$2a$10$6QcyxPOAJ1Lsu5wSqN1YBur2XtSPujA43PrX2/KqjRS33J6Y2ylaW"
 JSONBIN_URL = f"https://api.jsonbin.io/v3/b/{JSONBIN_BIN_ID}"
@@ -19,15 +19,17 @@ JSONBIN_URL = f"https://api.jsonbin.io/v3/b/{JSONBIN_BIN_ID}"
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# Загрузка данных из облака
+# Завантаження даних з хмари
 async def load_data():
     headers = {
         "X-Master-Key": JSONBIN_KEY,
         "X-Bin-Meta": "false"
     }
     try:
+        clean_url = JSONBIN_URL.replace("/latest", "")
+        url = f"{clean_url}/latest"
         async with ClientSession() as session:
-            async with session.get(JSONBIN_URL, headers=headers) as resp:
+            async with session.get(url, headers=headers) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     if not isinstance(data, dict): data = {}
@@ -35,25 +37,31 @@ async def load_data():
                     if "forever" not in data or not isinstance(data["forever"], list): data["forever"] = []
                     if "elite" not in data or not isinstance(data["elite"], list): data["elite"] = []
                     return data
+                else:
+                    print(f"Помилка завантаження JSONBin: {resp.status}")
     except Exception as e:
-        print(f"Ошибка загрузки из облака: {e}")
+        print(f"Помилка завантаження з хмари: {e}")
     return {"pencil": [], "forever": [], "elite": []}
 
-# Сохранение данных в облако
+# Збереження даних у хмару
 async def save_data(data):
+    clean_url = JSONBIN_URL.replace("/latest", "")
     headers = {
         "Content-Type": "application/json",
-        "X-Master-Key": JSONBIN_KEY
+        "X-Master-Key": JSONBIN_KEY,
+        "X-Bin-Versioning": "false"
     }
     try:
         async with ClientSession() as session:
-            async with session.put(JSONBIN_URL, json=data, headers=headers) as resp:
+            async with session.put(clean_url, json=data, headers=headers) as resp:
                 if resp.status != 200:
-                    print(f"Ошибка сохранения JSONBin: {resp.status}")
+                    print(f"Помилка збереження JSONBin: {resp.status}")
+                else:
+                    print("Дані успішно збережено в JSONBin!")
     except Exception as e:
-        print(f"Ошибка соединения с облаком: {e}")
+        print(f"Помилка з'єднання з хмарою: {e}")
 
-# Проверка админа (личный аккаунт или канал)
+# Перевірка адміна (особистий акаунт або канал)
 def is_admin(message: types.Message) -> bool:
     if message.from_user and message.from_user.id == ADMIN_ID:
         return True
@@ -61,7 +69,7 @@ def is_admin(message: types.Message) -> bool:
         return True
     return False
 
-# Получение имени автора
+# Отримання імені автора
 def get_comment_author_name(reply_message: types.Message) -> str:
     if reply_message.author_signature:
         return str(reply_message.author_signature)
@@ -75,9 +83,9 @@ def get_comment_author_name(reply_message: types.Message) -> str:
     return "Неизвестный нарушитель"
 
 
-# ==================== ВЫВОД СПИСКОВ ====================
+# ==================== ВИВІД СПИСКІВ ====================
 
-@dp.message(F.text.regexp(r'(?i)^!ангелы(\s|$)'))
+@dp.message(F.text.regexp(r'(?i)^!эй(\s|$)'))
 async def show_elite_list(message: types.Message):
     data = await load_data()
     clean_elite = [str(x) for x in data["elite"] if x and isinstance(x, str)]
@@ -102,12 +110,12 @@ async def show_list(message: types.Message):
     await message.reply(text, parse_mode="HTML")
 
 
-# ==================== УПРАВЛЕНИЕ ЧЕРЕЗ РЕПЛАЙ ====================
+# ==================== УПРАВЛІННЯ ЧЕРЕЗ РЕПЛАЙ ====================
 
 @dp.message(F.reply_to_message & F.text.regexp(r'(?i)^!элита(\s|$)'))
 async def add_to_elite(message: types.Message):
     if not is_admin(message):
-        await message.reply("❌ У вас нет прав для использования этой команды.")
+        await message.reply("❌ У вас нет прав для использования этой команды. Идите, пожалуйста, нахуй")
         return
         
     username = get_comment_author_name(message.reply_to_message)
@@ -134,10 +142,10 @@ async def add_to_list(message: types.Message):
     data = await load_data()
     
     if username in data["elite"]:
-        await message.reply("Этого пользователя нельзя добавить в тетрадку, он в списке элиты! 👑")
+        await message.reply("Этого пользователя хуй добавишь в тетрадку, он в списке элиты! 👑")
         return
     if username in data["forever"]:
-        await message.reply(f"{username} уже в тетрадке пидерасов навсегда. Тут без шансов.")
+        await message.reply(f"{username} уже в тетрадке пидорасов навсегда. Тут без шансов.")
         return
         
     if username in data["pencil"]:
@@ -162,9 +170,9 @@ async def remove_from_pencil(message: types.Message):
     if username in data["pencil"]:
         data["pencil"].remove(username)
         await save_data(data)
-        await message.reply(f"Стерто. {username} удален из тетрадки карандашиком. 🧽")
+        await message.reply(f"Стерто. {username} удален из тетрадки карандашиком, на этот раз прощаю")
     elif username in data["forever"]:
-        await message.reply("Этого уже не стереть, он в тетрадке навсегда. 🗿")
+        await message.reply("Этого уже не стереть, он в тетрадке навсегда. Пидорасом родился, им же и умрет")
     else:
         await message.reply("Этого пользователя нет в тетрадке карандашиком.")
 
